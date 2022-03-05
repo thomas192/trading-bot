@@ -8,9 +8,9 @@ from Strategy import Strategy, STOP_LOSS, HIGHER_STOP_LOSS
 # ---- Gather data ---- #
 
 # Data parameters
-TIMEFRAME = "5m"
-START_DATE = "2020-10-23 00:00:00"
-END_DATE = "2020-10-30 00:01:00"
+TIMEFRAME = "15m"
+START_DATE = "2018-01-01 00:00:00"
+END_DATE = "2019-01-01 00:01:00"
 PAIR = 'ETH/USDT'
 
 # Get data

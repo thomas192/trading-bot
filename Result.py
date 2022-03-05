@@ -14,20 +14,20 @@ class Result:
         capital_change = df_trades["trade_change"].sum() - len(df_trades) * 2 * 0.075
 
         # Performance
-        capital_change = round(capital_change, 1)
+        capital_change = round(capital_change, 2)
         nb_trades = len(df_trades)
         winning_trades = df_trades[df_trades["trade_change"] > 0]
         losing_trades = df_trades[df_trades["trade_change"] < 0]
         nb_winning_trades = len(winning_trades)
         nb_losing_trades = len(losing_trades)
-        avg_winning_trade = round(winning_trades["trade_change"].mean(), 1)
-        avg_losing_trade = round(losing_trades["trade_change"].mean(), 1)
-        avg_profit = round(df_trades["trade_change"].mean(), 1)
-        max_loss = round(df_trades["trade_change"].min(), 1)
+        avg_winning_trade = round(winning_trades["trade_change"].mean(), 2)
+        avg_losing_trade = round(losing_trades["trade_change"].mean(), 2)
+        avg_profit = round(df_trades["trade_change"].mean(), 2)
+        max_loss = round(df_trades["trade_change"].min(), 2)
 
         # Pair change
         pair_change = round((df_chart.at[df_chart.index[-1], "close"] - df_chart.at[df_chart.index[0], "open"])
-                            / df_chart.at[df_chart.index[0], "open"] * 100, 1)
+                            / df_chart.at[df_chart.index[0], "open"] * 100, 2)
 
         # Display results
         print(pair + " change: " + str(pair_change) + " %")

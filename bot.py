@@ -12,7 +12,7 @@ from Strategy import Strategy, STOP_LOSS, BB_WINDOW, BB_STD, VWMA_WINDOW, RSI_WI
 PAIR = "ETH/USDT"
 ETH = "ETH"
 USDT = "USDT"
-TIMEFRAME = "5m"
+TIMEFRAME = "15m"
 
 # Get latest data
 binance = Binance()
@@ -75,11 +75,10 @@ while 1:
                 action = Strategy.bb_strategy(prev_candle, positioned, hold, overbought, oversold, trade_buy_price)
                 print("\n" + str(prev_candle["date"]) + " action: " + str(action))
                 # Act
-                if action is not False:
+                if not pd.isnull(action):
                     if action == "buy":
                         # Create buy market order
-                        # amount = binance.get_balance(USDT)
-                        amount = 15
+                        amount = binance.get_balance(USDT)
                         order_id = binance.create_market_quote_order(PAIR, "buy", amount)
                         print("\nCreated BUY order " + str(order_id))
                         # WAIT FOR ORDER TO BE FILLED
@@ -161,10 +160,10 @@ while 1:
                 trade_exit = trades.iloc[trades.index[-1]]
                 print("Latest trade: " + str(trade_exit))
 
-        time.sleep(0.3)
+        time.sleep(0.5)
 
     except NetworkError:
-        print(str(datetime.now()) + " CONNECTION LOST...")
+        print("\n" + str(datetime.now()) + " CONNECTION LOST...")
         continue
     except Exception as e:
         raise e

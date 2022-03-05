@@ -1,24 +1,24 @@
 from Indicator import Indicator
 
 # 15min bb_strategy variables
-"""BB_WINDOW = 20
+BB_WINDOW = 21
 BB_STD = 2
-VWMA_WINDOW = 20
+VWMA_WINDOW = 21
 RSI_WINDOW = 21
 RSI_HIGH_BAND = 65
 RSI_LOW_BAND = 30
-STOP_LOSS = -0.55
-HIGHER_STOP_LOSS = -0.55"""
+STOP_LOSS = -0.58
+HIGHER_STOP_LOSS = -0.58
 
 # 5min bb_strategy variables
-BB_WINDOW = 20
+"""BB_WINDOW = 21
 BB_STD = 2
-VWMA_WINDOW = 20
+VWMA_WINDOW = 21
 RSI_WINDOW = 21
 RSI_HIGH_BAND = 65
 RSI_LOW_BAND = 30
-STOP_LOSS = -0.4
-HIGHER_STOP_LOSS = -0.4
+STOP_LOSS = -0.3
+HIGHER_STOP_LOSS = -0.3"""
 
 
 class Strategy:
@@ -144,5 +144,3 @@ class Strategy:
                     else:
                         # HOLD LONGER
                         return "hold"
-        else:
-            return False
