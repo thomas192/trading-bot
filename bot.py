@@ -4,16 +4,21 @@ import traceback
 
 import numpy as np
 import pandas as pd
-from ccxt import NetworkError
 
+from Firestore import Firestore
 from Binance import Binance
 from Indicator import Indicator
 from Strategy import Strategy, STOP_LOSS, BB_WINDOW, BB_STD, VWMA_WINDOW, RSI_WINDOW
+
+# ---- BOT SET UP ---- #
 
 PAIR = "ETH/USDT"
 ETH = "ETH"
 USDT = "USDT"
 TIMEFRAME = "15m"
+
+# Create Firestore instance
+firestore = Firestore()
 
 # Get latest data
 binance = Binance()
@@ -26,9 +31,9 @@ print("Current candle : " + str(curr_candle["date"]))
 print("Previous candle : " + str(prev_candle["date"]))
 
 # Create dataframe for trades info
-trades = pd.DataFrame(columns=["date", "side", "price", "trade_change"])
+trades = pd.DataFrame(columns=["date", "side", "price", "trade_change", "capital"])
 
-# Parameters
+# Bot variables
 positioned = False
 hold = False
 overbought = False
@@ -37,8 +42,15 @@ trade_buy_price = np.nan
 trade_sell_price = np.nan
 stop_loss_id = None
 order_id = None
-savepoint = None  # Used for handling errors
+save_point = None  # Used for handling errors
 error = False  # Set to True each time an error occurs
+nb_of_trades = len(trades)  # Used to know when to save trades in Firestore
+trade_id = 0  # Increment after each trade insert
+error_id = 0  # Increment after each error insert
+traceback_str = ""  # Used to store the traceback
+error_str = ""  # Used to store the error code
+
+# ---- BOT LOOP ---- #
 
 # IF LAUNCHING BOT WHILE CURRENTLY POSITIONED
 if binance.get_number_of_open_orders(PAIR) > 0:
@@ -56,10 +68,11 @@ while 1:
         # IF AN ERROR OCCURRED DURING LAST ITERATION
         if error:
             # IF IT WAS DURING BUY ACTION
-            if savepoint == "buy":
+            if save_point == "buy":
                 print("\nResolving error during last buy action...")
                 # IF BUY ORDER WAS NOT CREATED
                 if pd.isnull(order_id):
+                    print("\nBuy order was not created")
                     # Create buy market order
                     amount = binance.get_balance(USDT)
                     order_id = binance.create_market_quote_order(PAIR, "buy", amount)
@@ -73,10 +86,10 @@ while 1:
                         print("\nBUY order " + str(order_id) + " canceled")
                     # ELIF ORDER CLOSED
                     elif binance.get_status_of_order(PAIR, order_id) == "closed":
-                        positioned = True
                         print("\nBUY order " + str(order_id) + " closed")
                 # If STOP LOSS ORDER WAS NOT CREATED
                 if pd.isnull(stop_loss_id):
+                    print("\nStop loss was not set")
                     # Get average filling price of market order
                     trade_buy_price = binance.get_average_price_of_order(PAIR, order_id)
                     # Set stop loss
@@ -84,21 +97,21 @@ while 1:
                     limit_price = trade_buy_price + trade_buy_price * STOP_LOSS / 100
                     stop_price = limit_price + 0.25
                     stop_loss_id = binance.create_stop_loss_order(PAIR, amount, stop_price, limit_price)
-                    print("\nStop loss " + str(stop_loss_id) + " status: "
-                          + str(binance.get_status_of_order(PAIR, stop_loss_id)))
+                    print("\nStop loss " + str(stop_loss_id) + " created")
                     # Save trade
-                    row = pd.Series([curr_candle["date"], "buy", trade_buy_price, np.nan],
-                                    index=["date", "side", "price", "trade_change"])
+                    row = pd.Series([curr_candle["date"], "buy", trade_buy_price, np.nan, np.nan],
+                                    index=["date", "side", "price", "trade_change", "capital"])
                     trades = trades.append(row, ignore_index=True)
                     #
                     order_id = None
-                    savepoint = None
+                    save_point = None
 
             # IF IT WAS DURING SELL ACTION
-            elif savepoint == "sell":
+            elif save_point == "sell":
                 print("\nResolving error during last sell action...")
                 # If STOP LOSS WAS NOT CANCELED
                 if not pd.isnull(stop_loss_id):
+                    print("\nStop loss was not canceled")
                     # Cancel stop loss order
                     stop_loss_id = binance.cancel_order(PAIR, stop_loss_id)
                     print("\n Created cancel order on stop loss: " + str(stop_loss_id))
@@ -115,10 +128,11 @@ while 1:
                         stop_loss_id = None
                 # IF SELL ORDER WAS NOT CREATED
                 if pd.isnull(order_id):
+                    print("\nSell order was not created")
+                    print()
                     # Create sell market order
                     amount = binance.get_balance(ETH)
                     order_id = binance.create_market_order(PAIR, "sell", amount)
-                    positioned = False
                     print("\nCreated SELL order " + str(order_id))
                     # WAIT FOR ORDER TO BE FILLED
                     while binance.get_status_of_order(PAIR, order_id) == "open":
@@ -134,18 +148,30 @@ while 1:
                         print("\nSELL order " + str(order_id) + " closed")
                         # Save trade
                         trade_sell_price = binance.get_average_price_of_order(PAIR, order_id)
+                        capital = binance.get_balance(USDT)
                         trade_change = (trade_sell_price - trade_buy_price) / trade_buy_price * 100 - 2 * 0.075
-                        row = pd.Series([curr_candle["date"], "sell", trade_sell_price, trade_change],
-                                        index=["date", "side", "price", "trade_change"])
+                        row = pd.Series([curr_candle["date"], "sell", trade_sell_price, trade_change, capital],
+                                        index=["date", "side", "price", "trade_change", "capital"])
                         trades = trades.append(row, ignore_index=True)
                         trade_buy_price = np.nan
                         trade_sell_price = np.nan
                         #
                         order_id = None
-                        savepoint = None
+                        save_point = None
 
-            print("\nError resolved or ignored if it did not occur during buy or sell action")
             error = False
+            print("\nError resolved or ignored if it did not occur during buy or sell action")
+            # Save error in Firestore
+            state_after_error = "positioned: " + str(positioned) + "\nhold: " + str(hold) \
+                                + "\ntrade_buy_price: " + str(trade_buy_price) \
+                                + "\ntrade_sell_price: " + str(trade_sell_price) \
+                                + "\nstop_loss_id: " + str(stop_loss_id) \
+                                + "\norder_id: " + str(order_id) \
+                                + "\nsave_point: " + str(save_point) \
+                                + "\nerror: " + str(error)
+            firestore.save_error(error_id, datetime.now(), error_str, traceback_str, state_after_error)
+            print("Error saved in Firestore")
+            error_id = error_id + 1
 
         # Get latest data
         candles = binance.get_latest_data(PAIR, TIMEFRAME, 25)
@@ -172,9 +198,10 @@ while 1:
                 print("\nStop loss " + str(stop_loss_id) + " was triggered last candle")
                 # Save trade
                 trade_sell_price = binance.get_average_price_of_order(PAIR, stop_loss_id)
+                capital = binance.get_balance(USDT)
                 trade_change = (trade_sell_price - trade_buy_price) / trade_buy_price * 100 - 2 * 0.075
-                row = pd.Series([curr_candle["date"], "sell", trade_sell_price, trade_change],
-                                index=["date", "side", "price", "trade_change"])
+                row = pd.Series([curr_candle["date"], "sell", trade_sell_price, trade_change, capital],
+                                index=["date", "side", "price", "trade_change", "capital"])
                 trades = trades.append(row, ignore_index=True)
                 trade_buy_price = np.nan
                 trade_sell_price = np.nan
@@ -187,7 +214,8 @@ while 1:
                 # Act
                 if not pd.isnull(action):
                     if action == "buy":
-                        savepoint = "buy"
+                        save_point = "buy"
+                        positioned = True
                         # Create buy market order
                         amount = binance.get_balance(USDT)
                         order_id = binance.create_market_quote_order(PAIR, "buy", amount)
@@ -202,7 +230,6 @@ while 1:
                             print("\nBUY order " + str(order_id) + " canceled")
                         # ELIF ORDER CLOSED
                         elif binance.get_status_of_order(PAIR, order_id) == "closed":
-                            positioned = True
                             print("\nBUY order " + str(order_id) + " closed")
                             # Get average filling price of market order
                             trade_buy_price = binance.get_average_price_of_order(PAIR, order_id)
@@ -211,18 +238,18 @@ while 1:
                             limit_price = trade_buy_price + trade_buy_price * STOP_LOSS / 100
                             stop_price = limit_price + 0.15
                             stop_loss_id = binance.create_stop_loss_order(PAIR, amount, stop_price, limit_price)
-                            print("\nStop loss " + str(stop_loss_id) + " status: "
-                                  + str(binance.get_status_of_order(PAIR, stop_loss_id)))
+                            print("\nStop loss " + str(stop_loss_id) + " created")
                             # Save trade
-                            row = pd.Series([curr_candle["date"], "buy", trade_buy_price, np.nan],
-                                            index=["date", "side", "price", "trade_change"])
+                            row = pd.Series([curr_candle["date"], "buy", trade_buy_price, np.nan, np.nan],
+                                            index=["date", "side", "price", "trade_change", "capital"])
                             trades = trades.append(row, ignore_index=True)
                             #
                             order_id = None
-                            savepoint = None
+                            save_point = None
 
                     elif action == "sell":
-                        savepoint = "sell"
+                        save_point = "sell"
+                        positioned = False
                         # Cancel stop loss order
                         stop_loss_id = binance.cancel_order(PAIR, stop_loss_id)
                         print("\n Created cancel order on stop loss: " + str(stop_loss_id))
@@ -240,7 +267,6 @@ while 1:
                         # Create sell market order
                         amount = binance.get_balance(ETH)
                         order_id = binance.create_market_order(PAIR, "sell", amount)
-                        positioned = False
                         print("\nCreated SELL order " + str(order_id))
                         # WAIT FOR ORDER TO BE FILLED
                         while binance.get_status_of_order(PAIR, order_id) == "open":
@@ -256,15 +282,16 @@ while 1:
                             print("\nSELL order " + str(order_id) + " closed")
                             # Save trade
                             trade_sell_price = binance.get_average_price_of_order(PAIR, order_id)
+                            capital = binance.get_balance(USDT)
                             trade_change = (trade_sell_price - trade_buy_price) / trade_buy_price * 100 - 2 * 0.075
-                            row = pd.Series([curr_candle["date"], "sell", trade_sell_price, trade_change],
-                                            index=["date", "side", "price", "trade_change"])
+                            row = pd.Series([curr_candle["date"], "sell", trade_sell_price, trade_change, capital],
+                                            index=["date", "side", "price", "trade_change", "capital"])
                             trades = trades.append(row, ignore_index=True)
                             trade_buy_price = np.nan
                             trade_sell_price = np.nan
                             #
                             order_id = None
-                            savepoint = None
+                            save_point = None
 
                     elif action == "hold":
                         # Hold longer
@@ -281,13 +308,18 @@ while 1:
                 trade_exit = trades.iloc[trades.index[-1]]
                 print("Latest trade: " + str(trade_exit))
 
-        time.sleep(0.5)
+        # IF A TRADE WAS MADE
+        if nb_of_trades != len(trades):
+            nb_of_trades = len(trades)
+            row = trades.iloc[trades.index[-1]]
+            firestore.save_trade(trade_id, PAIR, row)
+            trade_id = trade_id + 1
 
-    except NetworkError:
-        print("\n" + str(datetime.now()) + " CONNECTION LOST...")
+        time.sleep(0.6)
+
+    except Exception as e:
         error = True
-        continue
-    except Exception:
         traceback.print_exc()
-        error = True
+        traceback_str = traceback.format_exc()
+        error_str = e
         continue

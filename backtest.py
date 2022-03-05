@@ -5,17 +5,15 @@ from Binance import Binance
 from Result import Result
 from Strategy import Strategy, STOP_LOSS, HIGHER_STOP_LOSS
 
-# ---- Gather data ---- #
+# ---- DATA SET UP ---- #
 
-# Parameters
 TIMEFRAME = "15m"
-# DOT
 START_DATE = "2018-01-01 00:00:00"
-END_DATE = "2020-11-20 00:01:00"
+END_DATE = "2018-01-01 00:01:00"
 PAIRS = ["ETH/USDT"]
 """PAIRS = ["BTC/USDT", "ETH/USDT", "BNB/USDT", "DOT/USDT", "ATOM/USDT", "VET/USDT", "AAVE/USDT", "SNX/USDT", "ADA/USDT",
          "XMR/USDT", "LINK/USDT", "EOS/USDT", "LTC/USDT", "MKR/USDT", "XRP/USDT"]"""
-CAPITAL = 400
+CAPITAL = 2000
 SAVE_PATH = "Research/bb_strategy/"
 
 binance = Binance()
@@ -25,7 +23,7 @@ for pair in PAIRS:
     # candles = binance.get_latest_data(PAIR, TIMEFRAME, 100)
     print("")
 
-    # ---- Backtest ---- #
+    # ---- SIMULATION SET UP ---- #
 
     # Create dataframe for OHLCV
     chart = pd.DataFrame(candles)
@@ -37,7 +35,7 @@ for pair in PAIRS:
     # Create dataframe for trades info
     trades = pd.DataFrame(columns=["date", "side", "price", "trade_change", "capital"])
 
-    # Strategy parameters
+    # Parameters
     positioned = False
     hold = False
     overbought = False
@@ -47,7 +45,8 @@ for pair in PAIRS:
     stop_loss = STOP_LOSS
     capital = CAPITAL
 
-    # Run simulation
+    # ---- RUN SIMULATION ---- #
+
     for index, row in chart.iterrows():
 
         action = Strategy.bb_strategy_bt(chart, index, positioned, hold, overbought, oversold, trade_buy_price, stop_loss)
@@ -87,6 +86,6 @@ for pair in PAIRS:
                 # Hold longer
                 hold = True
 
-    # ---- Result ---- #
+    # ---- RESULT ---- #
 
     Result.strategy_performance(pair, TIMEFRAME, trades, chart, SAVE_PATH)
