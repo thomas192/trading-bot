@@ -10,14 +10,14 @@ class Binance:
         # Switch to testnet
         # self.binance.set_sandbox_mode(True)
         # Credentials
-        self.binance.apiKey = 'AwBjO2ajlBUZCHpuFQbtXSfjLFJSmGuE0HwZij5ZfkyKNwf4KW3aJvi9pfiRdmTA'
-        self.binance.secret = 'ij6jecXCAsMTL6OhVf8ttjCrH7A4KmKb2cbv9vGyeWvLxAODBIsvqbeH3csjMVRA'
+        # self.binance.apiKey = 'AwBjO2ajlBUZCHpuFQbtXSfjLFJSmGuE0HwZij5ZfkyKNwf4KW3aJvi9pfiRdmTA'
+        # self.binance.secret = 'ij6jecXCAsMTL6OhVf8ttjCrH7A4KmKb2cbv9vGyeWvLxAODBIsvqbeH3csjMVRA'
         # Credentials for testnet
         # self.binance.apiKey = 'C0DsfrNhLDEVvWOvXXAKOD2GKioruMZoWn1zaVQ3YSJQ4bobdsYsERkdmxuKbpV2'
         # self.binance.secret = 'boOhj5889EjRS5Ctk99o1ERa37K9fioNGRqPum94QYbLSeabTHjkE98d3GUOOFX9'
 
         # Check if authentication was successful
-        self.binance.check_required_credentials()
+        # self.binance.check_required_credentials()
 
         self.binance.enableRateLimit = True
         self.binance.load_markets()
@@ -128,6 +128,7 @@ class Binance:
             hour = 8 * 60
         elif timeframe == "1d":
             day = 1 * 24
+            hour = 1 * 60
         elif timeframe == "1w":
             week = 1 * 7
 

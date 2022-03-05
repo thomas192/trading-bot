@@ -322,4 +322,5 @@ while 1:
         traceback.print_exc()
         traceback_str = traceback.format_exc()
         error_str = e
+        time.sleep(0.3)
         continue
