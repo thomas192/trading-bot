@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
-from Strategy import Strategy
+from Indicator import Indicator
 
 # data input
 TIMEFRAME = "15m"
@@ -95,47 +95,126 @@ chart.columns = ["date", "open", "high", "low", "close", "volume"]
 # calculate change
 chart["change"] = (chart["close"] - chart["open"]) / chart["open"] * 100
 
-# --- Backtesting --- #
+# add indicators to dataframe
+# Indicators.add_indicator(df=chart, indicator_name="ema", col_name="short_ema", window=SHORT_SPAN)
+# Indicators.add_indicator(df=chart, indicator_name="ema", col_name="long_ema", window=LONG_SPAN)
+Indicator.add_indicator(df=chart, indicator_name="sma", col_name="sma_50", window=50)
+Indicator.add_indicator(df=chart, indicator_name="bb", window=BB_WINDOW, std=BB_STD)
+Indicator.add_indicator(df=chart, indicator_name="vwma", col_name="vwma", window=VWMA_WINDOW)
+Indicator.add_indicator(df=chart, indicator_name="rsi", col_name="rsi", window=RSI_WINDOW)
 
-# Plotting variables
+# backtest
 strategy = pd.DataFrame(chart["date"])
 strategy["order"] = ""
 strategy["price"] = np.nan
 trades = pd.DataFrame(columns=["buy_price", "sell_price", "change"])
+
+positioned = False
+oversold = False
+overbought = False
+hold = False
 trade_buy_price = np.nan
 trade_sell_price = np.nan
-
-# Strategy variables
-positioned = False
-hold = False
-
 for index, row in chart.iterrows():
+    if index != 0:
+        # IF RSI < LOW BAND
+        if chart.at[index - 1, "rsi"] < RSI_LOW_BAND:
+            oversold = True
+        # ELIF RSI > HIGH BAND
+        elif chart.at[index - 1, "rsi"] > RSI_HIGH_BAND:
+            overbought = True
+        # HIGH BAND > RSI > LOW BAND
+        else:
+            overbought = False
+            oversold = False
 
-    action = Strategy.bb_strategy(chart, index, positioned, hold, trade_buy_price)
-
-    if action is not False:
-        if action == "buy":
+        if hold is True:
+            # IF NOT OVERBOUGHT ANYMORE
+            if overbought is False:
+                # SELL
+                strategy.at[index, "order"] = "sell"
+                strategy.at[index, "price"] = chart.at[index, "open"]
+                trade_sell_price = chart.at[index, "open"]
+                positioned = False
+                hold = False
+        # IF LOW < BB_LOW AND NOT OVERSOLD
+        elif chart.at[index - 1, "low"] < chart.at[index - 1, "bb_low"] and oversold is False and positioned is False:
             # BUY
             strategy.at[index, "order"] = "buy"
             strategy.at[index, "price"] = chart.at[index, "open"]
             trade_buy_price = chart.at[index, "open"]
             positioned = True
-        elif action == "sell":
-            # SELL
+        # ELIF CLOSE > BB_AVG
+        elif chart.at[index - 1, "close"] > chart.at[index - 1, "bb_avg"] and positioned is True:
+            # IF CLOSE < VWMA
+            if chart.at[index - 1, "close"] < chart.at[index - 1, "vwma"]:
+                # SELL
+                strategy.at[index, "order"] = "sell"
+                strategy.at[index, "price"] = chart.at[index, "open"]
+                trade_sell_price = chart.at[index, "open"]
+                positioned = False
+            # CLOSE > VWMA
+            else:
+                # IF CLOSE > BB_UP
+                if chart.at[index - 1, "close"] > chart.at[index - 1, "bb_up"]:
+                    # IF NOT OVERBOUGHT
+                    if overbought is False:
+                        # SELL
+                        strategy.at[index, "order"] = "sell"
+                        strategy.at[index, "price"] = chart.at[index, "open"]
+                        trade_sell_price = chart.at[index, "open"]
+                        positioned = False
+                    # IF OVERBOUGHT
+                    else:
+                        hold = True
+        # STOP LOSS
+        elif positioned is True:
+            curr_trade_change = (chart.at[index - 1, "close"] - trade_buy_price) / trade_buy_price * 100
+            if curr_trade_change < -STOP_LOSS:
+                # SELL
+                strategy.at[index, "order"] = "sell"
+                strategy.at[index, "price"] = chart.at[index, "open"]
+                trade_sell_price = chart.at[index, "open"]
+                positioned = False
+                # save trade
+                trade_sell_price = chart.at[index, "open"]
+                trade_change = (trade_sell_price - trade_buy_price) / trade_buy_price * 100
+                row = pd.Series([trade_buy_price, trade_sell_price, trade_change], index=["buy_price", "sell_price",
+                                                                                          "change"])
+                trades = trades.append(row, ignore_index=True)
+                trade_buy_price = np.nan
+                trade_sell_price = np.nan
+
+    if not np.isnan(trade_buy_price) and not np.isnan(trade_sell_price):
+        # save trade
+        trade_change = (trade_sell_price - trade_buy_price) / trade_buy_price * 100
+        row = pd.Series([trade_buy_price, trade_sell_price, trade_change], index=["buy_price", "sell_price",
+                                                                                  "change"])
+        trades = trades.append(row, ignore_index=True)
+        trade_buy_price = np.nan
+        trade_sell_price = np.nan
+
+    """if positioned and not np.isnan(trade_buy_price):
+        # track trade change
+        curr_trade_change += chart.at[index, "change"]
+        # stop loss
+        if curr_trade_change < -STOP_LOSS:
             strategy.at[index, "order"] = "sell"
             strategy.at[index, "price"] = chart.at[index, "open"]
             trade_sell_price = chart.at[index, "open"]
             positioned = False
-            hold = False
-            # SAVE TRADE
-            trade_change = (trade_sell_price - trade_buy_price) / trade_buy_price * 100
-            row = pd.Series([trade_buy_price, trade_sell_price, trade_change], index=["buy_price", "sell_price",
-                                                                                      "change"])
-            trades = trades.append(row, ignore_index=True)
-            trade_buy_price = np.nan
-            trade_sell_price = np.nan
-        elif action == "hold":
-            hold = True
+
+    if not positioned and not np.isnan(trade_sell_price):
+        # track trade change
+        curr_trade_change += chart.at[index, "change"]
+        # save trade
+        row = pd.Series([trade_buy_price, trade_sell_price, curr_trade_change], index=["buy_price", "sell_price",
+                                                                                       "change"])
+        trades = trades.append(row, ignore_index=True)
+        # reset trade info at end of trade
+        curr_trade_change = 0
+        trade_buy_price = np.nan
+        trade_sell_price = np.nan"""
 
 # simulate real stop loss
 # trades["change"][trades["change"] < -STOP_LOSS] = -STOP_LOSS
