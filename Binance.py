@@ -56,44 +56,28 @@ class Binance:
         # Query
         order = self.binance.create_order(symbol, "limit", side, amount=None, price=limit_price,
                                           params={"quoteOrderQty": quote_order_quantity})
-        # Results
-        order_id = order["id"]
-        # print("\nBinance order " + str(order_id) + " status : " + str(order["info"]["status"]))
-        # print("CCXT order " + str(order_id) + " status : " + str(order["status"]))
         # Return
-        return order_id
+        return order["id"]
 
     def create_market_quote_order(self, symbol, side, quote_order_quantity):
         # Query
         order = self.binance.create_order(symbol, "market", side, amount=quote_order_quantity, price=None,
                                           params={"quoteOrderQty": quote_order_quantity})
-        # Results
-        order_id = order["id"]
-        # print("\nBinance order " + str(order_id) + " status : " + str(order["info"]["status"]))
-        # print("CCXT order " + str(order_id) + " status : " + str(order["status"]))
         # Return
-        return order_id
+        return order["id"]
 
     def create_market_order(self, symbol, side, amount):
         # Query
         order = self.binance.create_order(symbol, "market", side, amount, price=None)
-        # Results
-        order_id = order["id"]
-        print("\nBinance order " + str(order_id) + " status : " + str(order["info"]["status"]))
-        print("CCXT order " + str(order_id) + " status : " + str(order["status"]))
         # Return
-        return order_id
+        return order["id"]
 
     def create_stop_loss_order(self, symbol, amount, stop_price, limit_price):
         # Query
         order = self.binance.create_order(symbol, "stop_loss_limit", "sell", amount, limit_price,
                                           params={"stopPrice": stop_price})
-        # Results
-        order_id = order["id"]
-        print("\nBinance order " + str(order_id) + " status : " + str(order["info"]["status"]))
-        print("CCXT order " + str(order_id) + " status : " + str(order["status"]))
         # Return
-        return order_id
+        return order["id"]
 
     def cancel_order(self, symbol, order_id):
         # Query
