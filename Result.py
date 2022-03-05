@@ -1,21 +1,21 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 from Strategy import STOP_LOSS, RSI_HIGH_BAND, RSI_LOW_BAND
 
 
 class Result:
 
     @staticmethod
-    def strategy_performance(df_trades, df_chart, pair):
+    def strategy_performance(pair, df_trades, df_chart):
         # Simulate real stop loss
-        df_trades["trade_change"][df_trades["trade_change"] < STOP_LOSS] = STOP_LOSS
-
+        df_trades.loc[df_trades.trade_change < STOP_LOSS, "trade_change"] = STOP_LOSS
         # Simulate trading fees
-        capital_change = df_trades["trade_change"].sum() - len(df_trades) * 2 * 0.075
+        nb_trades = len(df_trades[df_trades["trade_change"].notnull()])
+        capital_change = df_trades["trade_change"].sum() - nb_trades * 2 * 0.075
 
-        # Performance
+        # General performance
         capital_change = round(capital_change, 2)
-        nb_trades = len(df_trades)
         winning_trades = df_trades[df_trades["trade_change"] > 0]
         losing_trades = df_trades[df_trades["trade_change"] < 0]
         nb_winning_trades = len(winning_trades)
@@ -40,9 +40,8 @@ class Result:
         print("maximum loss: " + str(max_loss) + " %")
 
     @staticmethod
-    def strategy_plot(de_chart, df_strategy):
-        # plotting
-        dfinal = pd.merge(de_chart, df_strategy, on="date", how="left")
+    def strategy_plot(df_trades, df_chart):
+        dfinal = pd.merge(df_chart, df_trades, on="date", how="right")
         fig, ax = plt.subplots()
         if dfinal.__contains__("close"):
             ax.plot(dfinal["close"])
@@ -69,7 +68,7 @@ class Result:
             ax.plot(dfinal["vwma"], color="#e3d517")
 
         if dfinal.__contains__("price"):
-            ax.scatter(x=dfinal.index, y=dfinal["price"].where(dfinal["order"] == "sell"), color="r", marker="x")
-            ax.scatter(x=dfinal.index, y=dfinal["price"].where(dfinal["order"] == "buy"), color="g", marker="x")
+            ax.scatter(x=dfinal.index, y=dfinal["price"].where(dfinal["side"] == "sell"), color="r", marker="x")
+            ax.scatter(x=dfinal.index, y=dfinal["price"].where(dfinal["side"] == "buy"), color="g", marker="x")
 
         plt.show()

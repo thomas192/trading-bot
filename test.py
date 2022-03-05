@@ -5,7 +5,7 @@ import logging
 
 # logging.basicConfig(level=logging.DEBUG)
 
-PAIR = "BTC/USDT"
+PAIR = "ETH/USDT"
 TIMEFRAME = "1m"
 
 # Get data
@@ -26,11 +26,14 @@ print(" Latest complete candle : " + str(latest_complete_candle["date"]))
 # order = binance.create_market_quote_order(PAIR, "buy", 500)
 # order = binance.create_market_order(PAIR, "buy", 0.5)
 
-print("\nBTC : " + str(binance.get_balance("BTC")))
+print("\nETH : " + str(binance.get_balance("ETH")))
 
 # Open orders
 nb = binance.get_number_of_open_orders(PAIR)
 print("\nNumber of open order : " + str(nb))
+
+order_id = binance.get_id_of_latest_open_order(PAIR)
+print(order_id)
 
 # Stop loss order
 """limit_price = current_candle["open"] - current_candle["open"] * 0.065
@@ -63,9 +66,6 @@ print("\nNumber of open order : " + str(nb))"""
 # Check order status
 """status = binance.get_order_status(PAIR, order_id)
 print("\n" + str(order_id) + " : " + str(status))"""
-
-order = binance.binance.fetch_order(196248, PAIR)
-print(order)
 
 # Get id of latest open order
 """order_id = binance.get_id_of_latest_open_order(PAIR)

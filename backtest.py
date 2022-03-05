@@ -10,12 +10,13 @@ from Strategy import Strategy, STOP_LOSS, HIGHER_STOP_LOSS
 # Data parameters
 TIMEFRAME = "15m"
 START_DATE = "2018-01-01 00:00:00"
-END_DATE = "2019-01-01 00:01:00"
+END_DATE = "2018-01-01 00:01:00"
 PAIR = 'ETH/USDT'
 
 # Get data
 binance = Binance()
 candles = binance.get_data(PAIR, TIMEFRAME, START_DATE, END_DATE)
+# candles = binance.get_latest_data(PAIR, TIMEFRAME, 100)
 print("")
 
 # ---- Backtest ---- #
@@ -27,21 +28,16 @@ chart.columns = ["date", "open", "high", "low", "close", "volume"]
 # Calculate change
 chart["change"] = (chart["close"] - chart["open"]) / chart["open"] * 100
 
-# Create dataframe for buy and sell prices
-strategy = pd.DataFrame(chart["date"])
-strategy["order"] = ""
-strategy["price"] = np.nan
-
 # Create dataframe for trades info
-trades = pd.DataFrame(columns=["buy_price", "sell_price", "trade_change"])
-trade_buy_price = np.nan
-trade_sell_price = np.nan
+trades = pd.DataFrame(columns=["date", "side", "price", "trade_change"])
 
 # Strategy parameters
 positioned = False
 hold = False
 overbought = False
 oversold = False
+trade_buy_price = np.nan
+trade_sell_price = np.nan
 stop_loss = STOP_LOSS
 
 # Run simulation
@@ -52,21 +48,22 @@ for index, row in chart.iterrows():
     if action is not False:
         if action == "buy":
             # Buy
-            strategy.at[index, "order"] = "buy"
-            strategy.at[index, "price"] = chart.at[index, "open"]
-            trade_buy_price = chart.at[index, "open"]
             positioned = True
+            trade_buy_price = chart.at[index, "open"]
+            # Save trade
+            row = pd.Series([chart.at[index, "date"], "buy", trade_buy_price, np.nan],
+                            index=["date", "side", "price", "trade_change"])
+            trades = trades.append(row, ignore_index=True)
         elif action == "sell":
             # Sell
-            strategy.at[index, "order"] = "sell"
-            strategy.at[index, "price"] = chart.at[index, "open"]
-            trade_sell_price = chart.at[index, "open"]
             positioned = False
             hold = False
+            trade_sell_price = chart.at[index, "open"]
+
             # Save trade
             trade_change = (trade_sell_price - trade_buy_price) / trade_buy_price * 100
-            row = pd.Series([trade_buy_price, trade_sell_price, trade_change], index=["buy_price", "sell_price",
-                                                                                      "trade_change"])
+            row = pd.Series([chart.at[index, "date"], "sell", trade_sell_price, trade_change],
+                            index=["date", "side", "price", "trade_change"])
             trades = trades.append(row, ignore_index=True)
             trade_buy_price = np.nan
             trade_sell_price = np.nan
@@ -80,6 +77,6 @@ for index, row in chart.iterrows():
 
 # ---- Result ---- #
 
-Result.strategy_performance(trades, chart, PAIR)
+Result.strategy_performance(PAIR, trades, chart)
 
-Result.strategy_plot(chart, strategy)
+Result.strategy_plot(chart, trades)

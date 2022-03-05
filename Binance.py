@@ -46,6 +46,12 @@ class Binance:
         # Return
         return orders[-1]["id"]
 
+    def get_id_of_latest_closed_order(self, symbol):
+        # Query
+        orders = self.binance.fetch_closed_orders(symbol, limit=2)
+        # Return
+        return orders[-1]["id"]
+
     def get_number_of_open_orders(self, symbol):
         # Query
         orders = self.binance.fetch_open_orders(symbol)
