@@ -1,26 +1,25 @@
 from Indicator import Indicator
 
-# Parameters for bb_strategy
+# bb_strategy variables
 BB_WINDOW = 20
 BB_STD = 2
 VWMA_WINDOW = 20
 RSI_WINDOW = 21
 RSI_HIGH_BAND = 65
 RSI_LOW_BAND = 30
-STOP_LOSS = 0.6
+STOP_LOSS = -0.55
+HIGHER_STOP_LOSS = -0.55
 
 
 class Strategy:
 
     @staticmethod
-    def bb_strategy(df, index, positioned, hold, trade_buy_price):
+    def bb_strategy(df, index, positioned, hold, overbought, oversold, trade_buy_price, stop_loss):
         # Compute indicators needed
         if not df.__contains__("bb_avg"):
             Indicator.add_indicator(df=df, indicator_name="bb", window=BB_WINDOW, std=BB_STD)
-
         if not df.__contains__("vwma"):
             Indicator.add_indicator(df=df, indicator_name="vwma", col_name="vwma", window=VWMA_WINDOW)
-
         if not df.__contains__("rsi"):
             Indicator.add_indicator(df=df, indicator_name="rsi", col_name="rsi", window=RSI_WINDOW)
 
@@ -41,7 +40,7 @@ class Strategy:
             # Determine if current trade change exceeded stop loss
             if positioned is True:
                 curr_trade_change = (df.at[prev_candle, "close"] - trade_buy_price) / trade_buy_price * 100
-                if curr_trade_change < -STOP_LOSS:
+                if curr_trade_change < stop_loss:
                     # SELL
                     return "sell"
 
@@ -75,6 +74,9 @@ class Strategy:
                         else:
                             # HOLD LONGER
                             return "hold"
+                    # CLOSE < BB_UP
+                    else:
+                        return "set_stop_loss"
             else:
                 return False
         else:

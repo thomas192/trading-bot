@@ -8,8 +8,8 @@ from Indicator import Indicator
 
 # data input
 TIMEFRAME = "15m"
-START_DATE = "2019-01-01 00:00:00"
-END_DATE = "2019-01-01 00:01:00"
+START_DATE = "2018-01-01 00:00:00"
+END_DATE = "2020-11-01 00:01:00"
 PAIR = 'ETH/USDT'
 
 # strategy input
@@ -21,7 +21,7 @@ VWMA_WINDOW = 20
 RSI_WINDOW = 21
 RSI_HIGH_BAND = 65
 RSI_LOW_BAND = 30
-STOP_LOSS = 0.6
+STOP_LOSS = 0.55
 
 # collect candlestick data from Binance
 binance = ccxt.binance()
@@ -219,9 +219,12 @@ for index, row in chart.iterrows():
 # simulate real stop loss
 # trades["change"][trades["change"] < -STOP_LOSS] = -STOP_LOSS
 
+# simulate real stop loss
+trades["change"][trades["change"] < -STOP_LOSS] = -STOP_LOSS
+# simulate trading fees
+capital_change = trades["change"].sum() - len(trades) * 2 * 0.075
 # strategy performance
-capital_change = round(trades["change"].sum(), 1)
-
+capital_change = round(capital_change, 1)
 nb_trades = len(trades)
 winning_trades = trades[trades["change"] > 0]
 losing_trades = trades[trades["change"] < 0]
