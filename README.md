@@ -1,10 +1,10 @@
 **Please read if you intend to use the code.**
 
-Version 1 of the backstesting system and trading bot was coded in the fall of 2020. I realized the bot was not reliable when used live. The backtesting system was basically seeing into the future one candle ahead. A couple months after, I decided to code a new version of the bot. It has a fully functionnal backtesting system and an analysis tool. Although the backtesting system in version 1 is flawed, it has more features than the second version. That is why I uploaded the code.
+Version 1 of the backstesting system and trading bot was coded in the fall of 2020. I realized the bot was not reliable when used live. The backtesting system was basically seeing into the future one candle ahead. A couple months after, I decided to code a new version of the bot. It has a fully functionnal backtesting system and an analysis tool. Although the backtesting system in version 1 is flawed, it has more features than the second version. You will notice that the code is not very efficient in some places, and that there are some calculation and logic errors in v1. However, v2 should be good to go.
 
 The bot uses the following libraries : pandas, numpy, matplotlib and ccxt.
 
-Below are examples of backtesting output from version 2.
+Below are examples of backtesting output from v2.
 
 ![](chart-sample.png)
 
