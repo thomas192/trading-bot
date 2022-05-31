@@ -26,33 +26,6 @@ class Exchange:
     """Retrieves historical data for given date"""
     def get_data(self, symbol, timeframe, from_datetime, to_datetime):
         ms = 1000
-        minute = 60 * ms
-        hour = 1
-        day = 1
-        week = 1
-
-        if timeframe == "1m":
-            minute = 1 * minute
-        elif timeframe == "3m":
-            minute = 3 * minute
-        elif timeframe == "5m":
-            minute = 5 * minute
-        elif timeframe == "15m":
-            minute = 15 * minute
-        elif timeframe == "30m":
-            minute = 30 * minute
-        elif timeframe == "1h":
-            hour = 1 * 60
-        elif timeframe == "2h":
-            hour = 2 * 60
-        elif timeframe == "4h":
-            hour = 4 * 60
-        elif timeframe == "8h":
-            hour = 8 * 60
-        elif timeframe == "1d":
-            day = 1 * 24
-        elif timeframe == "1w":
-            week = 1 * 7
 
         from_timestamp = self.exchange.parse8601(from_datetime)
         to_timestamp = self.exchange.parse8601(to_datetime)

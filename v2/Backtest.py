@@ -10,17 +10,17 @@ from Indicator import Indicator
 
 class Backtest:
 
-    def __init__(self, data, pair, timeframe, capital):
+    def __init__(self, data, pair, timeframe, equity):
         # Stores price, indicators, and trades for plotting
         self.data = pd.DataFrame(data)
         self.data.columns = ['date', 'open', 'high', 'low', 'close', 'volume']
         # Stores trades for later analysis
-        self.trades = pd.DataFrame(columns=['index', 'buyp', 'sellp', 'change', 'capital'])
+        self.trades = pd.DataFrame(columns=['index', 'buyp', 'sellp', 'change', 'equity'])
 
         self.pair = pair
         self.timeframe = timeframe
-        self.initial_capital = capital
-        self.capital = capital
+        self.initial_equity = equity
+        self.equity = equity
 
         self.positioned = False
         self.stop_loss = np.nan
@@ -28,6 +28,9 @@ class Backtest:
         self.sellp = np.nan
 
         self.trailing_sl = False
+        self.expiration = np.nan
+        self.bars_left = np.nan
+        self.entry = np.nan
 
 
     def high_low_flipper_strategy(self, curr):
@@ -46,6 +49,11 @@ class Backtest:
             self.data['sellp'] = np.nan
         if not self.data.__contains__('sl'):
             self.data['sl'] = np.nan
+        if not self.data.__contains__('entry'):
+            self.data['entry'] = np.nan
+        if not self.data.__contains__('equity'):
+            self.data['equity'] = np.nan
+            self.data.at[0, 'equity'] = self.initial_equity
 
         open = self.data.at[curr, 'open']
         prev = curr - 1
@@ -57,13 +65,38 @@ class Backtest:
         prev_lfn = self.data.at[prev, 'lfn']
         prev_atr = self.data.at[prev, 'atr']
         prev_sma = self.data.at[prev, 'sma']
+        prev_entry = self.data.at[prev, 'entry']
 
-        # BUY at open if low went below lfn
+        # If an entry is set, check if it's still valid
+        if self.entry is not np.nan and not self.positioned:
+            # Decrease the number of bars left before expiration
+            self.bars_left = self.bars_left - 1
+            # If expired reset the entry and the expiration
+            if self.bars_left < 0:
+                self.entry = np.nan
+                self.bars_left = self.expiration
+            # Keep track of the entry level for plotting
+            else:
+                self.data.at[curr, 'entry'] = self.entry
+
+        # Define entry if low went below lfn
         if prev_low < prev_lfn and not self.positioned:
+            # Set entry
+            self.entry = prev_low + 2 * prev_atr
+            # Keep track of the entry level for plotting
+            self.data.at[curr, 'entry'] = self.entry
+            # Set the number of bars before expiration
+            self.bars_left = self.expiration
+            return False
+
+        # BUY if entry level has been triggered
+        if prev_high > self.entry and self.entry is not np.nan and not self.positioned:
+            self.entry = np.nan
+            self.bars_left = self.expiration
             # We assume we are not above sma when buying (even if we are)
             self.trailing_sl = False
             # Set stop-loss
-            self.stop_loss = open - 1.2 * prev_atr
+            self.stop_loss = open - 2 * prev_atr
             self.data.at[curr, 'sl'] = self.stop_loss
             return {'side': 'buy', 'price': open}
 
@@ -78,14 +111,15 @@ class Backtest:
 
         # Set trailing stop-loss below sma
         if self.trailing_sl and self.positioned:
-            self.stop_loss = prev_sma - 1.2 * prev_atr
+            self.stop_loss = prev_sma - 1.3 * prev_atr
             self.data.at[curr, 'sl'] = self.stop_loss
 
         return False
 
 
-    def set_strategy(self, strategy):
+    def set_strategy(self, strategy, expiration):
         self.strategy = strategy
+        self.expiration = expiration
 
 
     def run(self):
@@ -102,30 +136,30 @@ class Backtest:
                     # Save trade
                     self.save_trade(prev)
 
-                else:
-                    # Get action
-                    action = self.strategy(curr)
-                    if action is not False:
-                        if action['side'] == 'buy':
-                            self.buyp = action['price']
-                            self.data.at[curr, 'buyp'] = self.buyp
-                            self.positioned = True
+                # Get action
+                action = self.strategy(curr)
+                if action is not False:
+                    if action['side'] == 'buy':
+                        self.buyp = action['price']
+                        self.data.at[curr, 'buyp'] = self.buyp
+                        self.positioned = True
 
-                        elif action['side'] == 'sell':
-                            self.sellp = action['price']
-                            self.data.at[curr, 'sellp'] = self.sellp
-                            # Reset
-                            self.positioned = False
-                            self.stop_loss = np.nan
-                            # Save trade
-                            self.save_trade(curr)
+                    elif action['side'] == 'sell':
+                        self.sellp = action['price']
+                        self.data.at[curr, 'sellp'] = self.sellp
+                        # Reset
+                        self.positioned = False
+                        self.stop_loss = np.nan
+                        # Save trade
+                        self.save_trade(curr)
 
 
     def save_trade(self, i):
         change = (self.sellp - self.buyp) / self.buyp * 100
         change = change - 2 * 0.075
-        self.capital = self.capital + self.capital * change / 100
-        row = {'index': i, 'buyp': self.buyp, 'sellp': self.sellp, 'change': change, 'capital': self.capital}
+        self.equity = self.equity + self.equity * change / 100
+        self.data.at[i, 'equity'] = self.equity
+        row = {'buyp': self.buyp, 'sellp': self.sellp, 'change': change, 'equity': self.equity}
         self.trades = self.trades.append(row, ignore_index=True)
 
 
@@ -144,36 +178,38 @@ class Backtest:
         avg_loss = round(lost['change'].mean(), 2)
         max_loss = round(lost['change'].min(), 2)
 
-        # All trades
+        # General
+        hodl_return = round((self.data['close'].iloc[-1] - self.data['open'].iloc[0]) / self.data['open'].iloc[0] * 100, 2)
         nb_trades = len(self.trades)
         avg_profit_loss = round(self.trades['change'].mean(), 2)
-        net_profit = round((self.capital - self.initial_capital) / self.initial_capital * 100, 2)
+        net_profit = round((self.equity - self.initial_equity) / self.initial_equity * 100, 2)
         if nb_lost > 0:
             wl_ratio = round(nb_won / nb_lost, 2)
         else:
             wl_ratio = nb_won / 1
 
-        print('\nInitial capital: ' + str(self.initial_capital))
-        print('Ending capital: ' + str(self.capital))
-        print('Net profit: ' + str(net_profit))
+        print('\nInitial equity: ' + str(self.initial_equity))
+        print('Ending equity: ' + str(self.equity))
+        print('Net profit: ' + str(net_profit) + ' %')
+        print('Hodl return: ' + str(hodl_return) + ' %')
 
         print('\n--- ALL TRADES ---')
         print('Number of trades: ' + str(nb_trades))
-        print('Average profit/loss: ' + str(avg_profit_loss))
+        print('Average profit/loss: ' + str(avg_profit_loss) + ' %')
         print('Win/loss ratio: ' + str(wl_ratio))
 
         print('\n--- WINNERS ---')
-        print('Total profit: ' + str(total_profit))
-        print('Average profit: ' + str(avg_profit))
-        print('Maximum profit: ' + str(max_profit))
+        print('Total profit: ' + str(total_profit) + ' %')
+        print('Average profit: ' + str(avg_profit) + ' %')
+        print('Maximum profit: ' + str(max_profit) + ' %')
 
         print('\n--- LOSERS ---')
-        print('Total loss: ' + str(total_loss))
-        print('Average loss: ' + str(avg_loss))
-        print('Maximum loss: ' + str(max_loss))
+        print('Total loss: ' + str(total_loss) + ' %')
+        print('Average loss: ' + str(avg_loss) + ' %')
+        print('Maximum loss: ' + str(max_loss) + ' %')
 
 
-    def plot_result(self):
+    def plot_result(self, display_equity=False):
         fig, ax = plt.subplots()
         
         # Title
@@ -191,10 +227,10 @@ class Backtest:
             vline = Line2D(xdata=(indexes[i], indexes[i]),
                            ydata=(self.data.at[i, 'low'], self.data.at[i, 'high']),
                           color='black', linewidth=0.5, antialiased=True)
-            oline = Line2D(xdata=(indexes[i], indexes[i]+width),
+            oline = Line2D(xdata=(indexes[i], indexes[i]-width),
                            ydata=(self.data.at[i, 'open'], self.data.at[i, 'open']),
                            color='black', linewidth=0.5, antialiased=True)
-            cline = Line2D(xdata=(indexes[i]-width, indexes[i]),
+            cline = Line2D(xdata=(indexes[i]+width, indexes[i]),
                            ydata=(self.data.at[i, 'close'], self.data.at[i, 'close']),
                            color='black', linewidth=0.5, antialiased=True)
             # Add bars
@@ -220,12 +256,20 @@ class Backtest:
             # Signals
             ax.scatter(x=indexes, y=self.data['buyp'], color='g', marker='x')
             ax.scatter(x=indexes, y=self.data['sellp'], color='r', marker='x')
+            # Entries
+            if self.data.__contains__('entry'):
+                ax.plot(self.data['entry'], color='green', linewidth=0.5)
             # Stop-losses
             for i, row in self.data.iterrows():
                 if self.data.at[i, 'sl'] != np.nan:
                     ax.add_line(Line2D(xdata=(indexes[i]-2*width, indexes[i]+2*width),
                                        ydata=(self.data.at[i, 'sl'], self.data.at[i, 'sl']),
                                        color='red', linewidth=0.75, antialiased=True))
+            # Equity
+            if self.data.__contains__('equity') and display_equity:
+                ax2 = ax.twinx()
+                ax2.plot(self.data['equity'], color='lightgrey', marker='o', linewidth=0.5)
+                ax2.set_ylabel('Equity')
 
         plt.plot()
         plt.show()

@@ -14,8 +14,8 @@ data = exchange.get_data(PAIR, TIMEFRAME, START, END)
 
 backtest = Backtest(data, PAIR, TIMEFRAME, 1000)
 
-backtest.set_strategy(backtest.high_low_flipper_strategy)
+backtest.set_strategy(backtest.high_low_flipper_strategy, expiration=10)
 backtest.run()
 
 backtest.get_result()
-backtest.plot_result()
+backtest.plot_result(display_equity=False)
