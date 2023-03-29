@@ -1,7 +1,8 @@
 **Please read if you intend to use the code.**
 
-Version 1 of the backtesting system and trading bot are flawed but are still in the repository because it has more features than version 2.
-Version 2 has a fully functional backtesting system and an analysis tool. You will notice that the code is not very efficient in some places, and that there are some calculation and logic errors in v1. However, v2 should be good to go.
+Version 1 of the backtesting system and trading bot is flawed but is still in the repository because it has more features than version 2.
+Version 2 has a fully functional backtesting system and an analysis tool.
+I had a hard time figuring everything, wish ChatGPT existed back then :)
 
 The bot uses the following libraries : pandas, numpy, matplotlib and ccxt.
 
