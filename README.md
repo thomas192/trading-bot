@@ -2,7 +2,7 @@
 
 Version 1 of the backtesting system and trading bot is flawed but is still in the repository because it has more features than version 2.
 
-Version 2 has a fully functional backtesting system and an analysis tool.
+Version 2 has a fully functional backtesting system and analysis tool.
 
 I had a hard time figuring out everything, wish ChatGPT existed back then :)
 
