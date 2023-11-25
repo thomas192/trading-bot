@@ -1,6 +1,6 @@
 **Please read if you intend to use the code.**
 
-Version 1 of the backtesting system and trading bot is flawed but is still in the repository because it has more features than version 2.
+Version 1 includes a backtesting system that is unreliable but remains in the repository because it includes the bot for live trading.
 
 Version 2 has a fully functional backtesting system and analysis tool.
 
