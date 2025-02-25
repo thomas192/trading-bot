@@ -1,8 +1,8 @@
 **Please read if you intend to use the code.**
 
-Version 1 includes a backtesting system that is unreliable but remains in the repository because it includes the bot for live trading.
-
 Version 2 has a fully functional backtesting system and analysis tool.
+
+Version 1 includes a backtesting system that is unreliable but remains in the repository because it includes the bot for live trading.
 
 I had a hard time figuring out everything, wish ChatGPT existed back then :)
 
